@@ -9,6 +9,8 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.stage.WindowEvent;
+import org.bson.json.JsonMode;
+import org.bson.json.JsonWriterSettings;
 
 import java.net.URL;
 import java.sql.SQLException;
@@ -142,7 +144,7 @@ public class Controller implements Initializable
         if(conditions.size() == 1)
             logic.getItems().setAll(Condition.LogicOperator.getAll());
 
-        script.setText(mongo.query(conditions).toJson());
+        script.setText(mongo.query(conditions).toJson(new JsonWriterSettings(JsonMode.SHELL)));
         boolean first = true;
         String logic = "";
         for (Condition c: conditions)

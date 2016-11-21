@@ -7,8 +7,8 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.Random;
+import java.security.SecureRandom;
+import java.util.*;
 
 public class TestMainClass {
 
@@ -17,47 +17,44 @@ public class TestMainClass {
     public static MongoCollection table;
     public static ArrayList<Document> tuples = new ArrayList<Document>();
 
-    public static void InsertIntoCollection(int num) throws Exception {
-        RandomAccessFile fr = new RandomAccessFile("C:\\Users\\mathe\\Documents\\GitHub\\election-mongodb\\res\\lorem.txt", "r");
+    static final String AB = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ";
+    static SecureRandom rnd = new SecureRandom();
+
+    public static String randomString( int len ){
+        StringBuilder sb = new StringBuilder( len );
+        for( int i = 0; i < len; i++ )
+            sb.append( AB.charAt( rnd.nextInt(AB.length()) ) );
+        return sb.toString();
+    }
+
+    public static void insertIntoCollection(int num) throws Exception {
         Document doc = new Document();
-        String rand = new String();
-        Random rn = new Random();
+        String rand = null;
 
         if(tuples.size() < num) {
             for (int i = 0; i < num; i++) {
                 doc.put("_id", i);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome1", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome2", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome3", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome4", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome5", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome6", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome7", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome8", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome9", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome10", rand);
-                fr.seek(rn.nextInt((int) fr.length()));
-                rand = fr.readLine();
+                rand = randomString(2000);
                 doc.put("nome11", rand);
 
                 tuples.add(doc);
@@ -70,17 +67,21 @@ public class TestMainClass {
         System.out.println("Time elapsed for " + num + " inserts: " + ((System.nanoTime() - startTime)/ 1000000000.0) + "s");
     }
 
-    public static void FindValues(int num){
+    public static void findValues(int num){
         Random rn = new Random();
-        
+        Document doc = new Document();
+
+
         long startTime = System.nanoTime();
         for(int i = 0; i < num; i++){
-            table.find(tuples.get(rn.nextInt(num)));
+            doc.put("nome1",tuples.get(rn.nextInt(num)).get("nome1"));
+
+            table.find(doc);
         }
         System.out.println("Time elapsed for " + num + " selects: " + ((System.nanoTime() - startTime)/ 1000000000.0) + "s");
     }
 
-    public static void CreateIndexes(){
+    public static void createIndexes(){
         BasicDBObject index1 = new BasicDBObject("name1",1);
 
         table.createIndex(index1);
@@ -91,20 +92,22 @@ public class TestMainClass {
         try {             /*Connect*/
             mongo = new MongoClient("localhost", 27017);
             db = mongo.getDatabase("labbd2016");
-            int num = 1000;
+            int num = 10000;
 
             //TABELA SEM INDICE
             table = db.getCollection("teste_100");
             table.drop();
-            InsertIntoCollection(num);
-            FindValues(num);
-
+            System.out.println("NO INDEX");
+            insertIntoCollection(num);
+            findValues(num);
+            
             //TABELA COM INDICE
-            /*table = db.getCollection("teste_100_index");
+            table = db.getCollection("teste_100_index");
             table.drop();
-            CreateIndexes();
-            InsertIntoCollection(num);
-            FindValues(num);*/
+            createIndexes();
+            System.out.println("WITH INDEX");
+            insertIntoCollection(num);
+            findValues(num);
         } catch (Exception e) {
             e.printStackTrace();
         }
