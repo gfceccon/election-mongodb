@@ -38,6 +38,8 @@ public class Controller implements Initializable
     @FXML
     public Button manyToMany;
     @FXML
+    public Button indexes;
+    @FXML
     public TextArea script;
     @FXML
     public ChoiceBox<Condition.LogicOperator> logic;
@@ -89,6 +91,7 @@ public class Controller implements Initializable
             conditionText.setText("");
             logic.getItems().setAll(Condition.LogicOperator.NOT);
         });
+        indexes.setOnAction(actionEvent -> generateIndexes());
         run.setOnAction(actionEvent ->
         {
             if (tables.getValue() != null)
@@ -192,5 +195,18 @@ public class Controller implements Initializable
                 e.printStackTrace();
             }
         };
+    }
+
+    public void generateIndexes(){
+        String text = "";
+        for(SQLTable table : SQLTable.allTables.values()){
+            for(SQLTableColumn col : table.allColumns.values()){
+                if(col.isPrimary || col.isForeign){
+                    text += "db." + table.toString() + ".createIndex({" + col + ": 1})\n";
+                }
+            }
+        }
+        script.clear();
+        script.setText(text);
     }
 }

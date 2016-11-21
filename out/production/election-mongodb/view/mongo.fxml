@@ -44,27 +44,33 @@
             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
           <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
         </columnConstraints>
         <rowConstraints>
           <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
         </rowConstraints>
          <children>
-            <Button fx:id="simple" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Simple" GridPane.vgrow="ALWAYS">
+            <Button fx:id="simple" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Simple">
                <GridPane.margin>
                   <Insets left="10.0" right="10.0" />
                </GridPane.margin>
             </Button>
-            <Button fx:id="reference" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Reference" GridPane.columnIndex="1" GridPane.vgrow="ALWAYS">
+            <Button fx:id="reference" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Reference" GridPane.columnIndex="1">
                <GridPane.margin>
                   <Insets left="10.0" right="10.0" />
                </GridPane.margin>
             </Button>
-            <Button fx:id="embedded" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Embedded" GridPane.columnIndex="2" GridPane.vgrow="ALWAYS">
+            <Button fx:id="embedded" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Embedded" GridPane.columnIndex="2">
                <GridPane.margin>
                   <Insets left="10.0" right="10.0" />
                </GridPane.margin>
             </Button>
             <Button fx:id="manyToMany" layoutX="320.0" layoutY="12.0" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="N:N" GridPane.columnIndex="3">
+               <GridPane.margin>
+                  <Insets left="10.0" right="10.0" />
+               </GridPane.margin>
+            </Button>
+            <Button fx:id="indexes" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Indexes" GridPane.columnIndex="4">
                <GridPane.margin>
                   <Insets left="10.0" right="10.0" />
                </GridPane.margin>

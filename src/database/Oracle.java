@@ -102,7 +102,7 @@ public class Oracle
                 column.references.add(ref);
 
                 table.foreignKeys.add(column);
-                SQLTable.allTables.get(refTable).referencedBy.add(table);
+                //SQLTable.allTables.get(refTable).referencedBy.add(table);
             }
 
             if(type.equals("U"))
