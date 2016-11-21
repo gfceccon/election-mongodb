@@ -258,7 +258,7 @@ public class Controller implements Initializable
                 count++;
             }
             if(count > 0)
-                text += "}, {unique: = true, sparse = true})\n";
+                text += "}, {unique: true, sparse: true})\n";
             else
                 text = "";
 

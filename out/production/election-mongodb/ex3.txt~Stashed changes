@@ -1,12 +1,39 @@
-db.runCommand({"collMod": "LE01ESTADO","validator":  {$and: [{SIGLA: {$exists: true, $type: "string"}},{NOME: {$exists: true, $type: "string"}}]}});
+db.runCommand({
+    "collMod": "LE01ESTADO",
+    "validator":  {$and: [{SIGLA: {$exists: true, $type: "string"}},
+                         {NOME: {$exists: true, $type: "string"}}
+                        ]
+                }
+});
 
-db.runCommand({"collMod": "LE02CIDADE","validator": {$and: [{NOME: {$exists: true, $type: "string"}},{SIGLAESTADO: {$exists: true, $type:"string"}},{POPULACAO: {$exists: true, $gte: 0}}]}});
+db.runCommand({
+    "collMod": "LE02CIDADE",
+    "validator":  {$and:   [{NOME: {$exists: true, $type: "string"}},
+                         {SIGLAESTADO: {$exists: true, $type:"string"}},
+                         {POPULACAO: {$exists: true, $gte: 0}}
+                        ]
+                }
+});
 
-db.runCommand({"collMod": "LE03ZONA","validator": {$and: [{NROZONA: {$exists: true}},{NRODEURNASRESERVAS: {$exists: true}}]}});
+db.runCommand({
+    "collMod": "LE03ZONA",
+    "validator":  {$and:   [{NROZONA: {$exists: true}},
+                         {NRODEURNASRESERVAS: {$exists: true}}]}
+});
 
-db.runCommand({"collMod": "LE04BAIRRO","validator": {$and: [{NOME: {$exists: true, $type: "string"}},{NOMECIDADE: {$exists: true, $type: "string"}},{SIGLAESTADO: {$exists: true, $type: "string"}},{NROZONA: {$exists: true}}]}});
+db.runCommand({
+    "collMod": "LE04BAIRRO",
+    "validator":  {$and:   [{NOME: {$exists: true, $type: "string"}},
+                         {NOMECIDADE: {$exists: true, $type: "string"}},
+                         {SIGLAESTADO: {$exists: true, $type: "string"}},
+                         {NROZONA: {$exists: true}}]}
+});
 
-db.runCommand({"collMod": "LE05URNA","validator": {$and: [{NSERIAL: {$exists: true}},{ESTADOR: {$in: ["funcional", "manutencao"]}}]}});
+db.runCommand({
+    "collMod": "LE05URNA",
+    "validator": {$and:   [{NSERIAL: {$exists: true}},
+                         {ESTADOR: {$in: ["funcional", "manutencao"]}}]}
+    });
 
 db.runCommand({
     "collMod": "LE06SESSAO",
