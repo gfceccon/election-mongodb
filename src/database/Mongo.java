@@ -175,11 +175,13 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         switch (column.type)
         {
             case "NUMBER":
-                return rs.getDouble(column.name);
+                return rs.getInt(column.name);
             case "DATE":
                 return rs.getDate(column.name);
             case "CHAR":
             case "VARCHAR":
+            case "CHAR2":
+            case "VARCHAR2":
                 return rs.getString(column.name);
         }
         return rs.getObject(column.name);
@@ -209,7 +211,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         {
             if(pk.isForeign && fks.contains(pk))
             {
-                ref.put(pk.name, getBSONType(row, pk));
+                ref.put(pk.references.stream().filter(sqlTableReference -> sqlTableReference.refName.equals(refName)).findFirst().get().refColumn, getBSONType(row, pk));
                 fkCount++;
                 isPK = true;
             }
@@ -218,13 +220,13 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         }
         if(isPK && fks.size() == fkCount)
         {
-            oracle.begin(table, ref);
+            oracle.begin(refTable, ref);
 
             ResultSet rs = oracle.next();
             if(rs != null)
             {
-                ref.clear();
-                for (SQLTableColumn col : refTable.columns)
+                ref = new BasicDBObject();
+                for (SQLTableColumn col : refTable.allColumns.values())
                     ref.put(col.name, getBSONType(rs, col));
             }
             id.put(refName, ref);
@@ -236,7 +238,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         dbObject.put("_id", id);
 
         fkCount = 0;
-        ref.clear();
+        ref = new BasicDBObject();
         for (SQLTableColumn fk : table.foreignKeys)
         {
             Object value = getBSONType(row, fk);
@@ -246,7 +248,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
             {
                 if(fks.contains(fk))
                 {
-                    ref.put(fk.name, value);
+                    ref.put(fk.references.stream().filter(sqlTableReference -> sqlTableReference.refName.equals(refName)).findFirst().get().refColumn, getBSONType(row, fk));
                     fkCount++;
                 }
                 else
@@ -255,13 +257,13 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         }
         if(fks.size() == fkCount)
         {
-            oracle.begin(table, ref);
+            oracle.begin(refTable, ref);
 
             ResultSet rs = oracle.next();
             if(rs != null)
             {
-                ref.clear();
-                for (SQLTableColumn col : refTable.columns)
+                ref = new BasicDBObject();
+                for (SQLTableColumn col : refTable.allColumns.values())
                     ref.put(col.name, getBSONType(rs, col));
             }
             dbObject.put(refName, ref);
@@ -307,7 +309,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         dbObject.put("_id", id);
 
         fkCount = 0;
-        ref.clear();
+        ref = new BasicDBObject();
         for (SQLTableColumn fk : table.foreignKeys)
         {
             Object value = getBSONType(rs, fk);
@@ -350,6 +352,8 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
 
         for (SQLTableColumn fk : table.foreignKeys)
         {
+            if(fk.isPrimary)
+                continue;
             Object value = getBSONType(rs, fk);
             if(value != null)
                 dbObject.put(fk.name, value);

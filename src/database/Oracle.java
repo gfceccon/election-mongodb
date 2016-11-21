@@ -156,6 +156,7 @@ public class Oracle
 
     public void end() throws SQLException
     {
+        rs.pop();
         stmt.pop().close();
     }
 }
