@@ -389,7 +389,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
             Iterator<Condition> iterator = conditions.iterator();
             Condition current = iterator.next();
 
-            // NULL, COND, AND, COND, AND, COND, OR, COND, OR, COND, NOT, COND
+            // NULLEMPTY, COND, AND, COND, AND, COND, OR, COND, OR, COND, NOT, COND
             // OR (AND(COND, COND, COND), COND, COND, NOT(COND))
             BasicDBObject and = null;
             BasicDBObject not = null;
