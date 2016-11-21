@@ -6,6 +6,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
+import org.bson.json.JsonMode;
+import org.bson.json.JsonWriterSettings;
 
 import javax.print.Doc;
 import java.sql.ResultSet;
@@ -109,21 +111,26 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         ResultSet rs;
 
 
-        List<SQLTableColumn> fks = table.allColumns.values().stream().filter(
-                col -> col.references.stream().anyMatch(
-                        tableReference -> tableReference.refName.equals(refTable.refName))).collect(Collectors.toList());
+        List<SQLTableColumn> fks = null;
+        if(type != ScriptType.SIMPLE)
+        {
+            fks = table.allColumns.values().stream().filter(
+                    col -> col.references.stream().anyMatch(
+                            tableReference -> tableReference.refName.equals(refTable.refName))).collect(Collectors.toList());
+        }
+        JsonWriterSettings settings = new JsonWriterSettings(JsonMode.SHELL);
         while((rs = oracle.next()) != null)
         {
             switch (type)
             {
                 case SIMPLE:
-                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectSimple(rs, table).toJson()));
+                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectSimple(rs, table).toJson(settings)));
                     break;
                 case REFERENCE:
-                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectReference(rs, table, refTable.refName, fks).toJson()));
+                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectReference(rs, table, refTable.refName, fks).toJson(settings)));
                     break;
                 case EMBEDDED:
-                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectEmbedded(rs, table, refTable.refName, fks).toJson()));
+                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectEmbedded(oracle, rs, table, refTable.refName, refTable.table, fks).toJson(settings)));
                     break;
             }
         }
@@ -154,9 +161,9 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         List<SQLTableColumn> left = table.allColumns.values().stream().filter(
                 col -> col.references.stream().anyMatch(
                         tableReference -> tableReference.refName.equals(refTables[1].refName))).collect(Collectors.toList());
-
+        JsonWriterSettings settings = new JsonWriterSettings(JsonMode.SHELL);
         while((rs = oracle.next()) != null)
-            builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectMany(rs, table, right, left)));
+            builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectMany(rs, table, right, left).toJson(settings)));
 
         oracle.end();
 
@@ -185,19 +192,91 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         for (SQLTableColumn pk : table.primaryKeys)
             id.put(pk.name, rs.getObject(pk.name));
         dbObject.put("_id", id);
-        dbObject.put("_id", id);
 
 
         return dbObject;
     }
 
-    private BasicDBObject getObjectEmbedded(ResultSet rs, SQLTable table, String refName, List<SQLTableColumn> fks) throws SQLException {
+    private BasicDBObject getObjectEmbedded(Oracle oracle, ResultSet row, SQLTable table, String refName, SQLTable refTable, List<SQLTableColumn> fks) throws SQLException {
         BasicDBObject dbObject = new BasicDBObject();
         BasicDBObject id = new BasicDBObject();
+        BasicDBObject ref = new BasicDBObject();
+
+        boolean isPK = false;
+        int fkCount = 0;
 
         for (SQLTableColumn pk : table.primaryKeys)
-            id.put(pk.name, getBSONType(rs, pk));
+        {
+            if(pk.isForeign && fks.contains(pk))
+            {
+                ref.put(pk.name, getBSONType(row, pk));
+                fkCount++;
+                isPK = true;
+            }
+            else
+                id.put(pk.name, getBSONType(row, pk));
+        }
+        if(isPK && fks.size() == fkCount)
+        {
+            oracle.begin(table, ref);
+
+            ResultSet rs = oracle.next();
+            if(rs != null)
+            {
+                ref.clear();
+                for (SQLTableColumn col : refTable.columns)
+                    ref.put(col.name, getBSONType(rs, col));
+            }
+            id.put(refName, ref);
+
+            oracle.end();
+        }
+        else if(isPK)
+            id.putAll(ref.toMap());
         dbObject.put("_id", id);
+
+        fkCount = 0;
+        ref.clear();
+        for (SQLTableColumn fk : table.foreignKeys)
+        {
+            Object value = getBSONType(row, fk);
+            if(fk.isPrimary)
+                continue;
+            if (value != null)
+            {
+                if(fks.contains(fk))
+                {
+                    ref.put(fk.name, value);
+                    fkCount++;
+                }
+                else
+                    dbObject.put(fk.name, value);
+            }
+        }
+        if(fks.size() == fkCount)
+        {
+            oracle.begin(table, ref);
+
+            ResultSet rs = oracle.next();
+            if(rs != null)
+            {
+                ref.clear();
+                for (SQLTableColumn col : refTable.columns)
+                    ref.put(col.name, getBSONType(rs, col));
+            }
+            dbObject.put(refName, ref);
+
+            oracle.end();
+        }
+        else if(ref.size() > 0)
+            dbObject.putAll(ref.toMap());
+
+        for (SQLTableColumn col : table.columns)
+        {
+            Object value = getBSONType(row, col);
+            if(value != null)
+                dbObject.put(col.name, value);
+        }
 
         return dbObject;
     }
@@ -228,6 +307,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         dbObject.put("_id", id);
 
         fkCount = 0;
+        ref.clear();
         for (SQLTableColumn fk : table.foreignKeys)
         {
             Object value = getBSONType(rs, fk);
