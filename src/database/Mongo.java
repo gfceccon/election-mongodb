@@ -93,9 +93,9 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
     //db.LE09Cargo.update({_id:1},{$set:{candidatos:[11]}})
     //db.LE09Cargo.update({_id:2},{$set:{candidatos:[11,22]}})
 
-    public String getScript(Oracle oracle, SQLTable table, ScriptType type) throws SQLException
+    public String getScript(Oracle oracle, SQLTable table, SQLTableReference refTable, ScriptType type) throws SQLException
     {
-        MongoCollection collection = database.getCollection(table.name);
+        //MongoCollection collection = database.getCollection(table.name);
         StringBuilder builder = new StringBuilder();
 
         oracle.begin(table);
@@ -109,13 +109,13 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
                     builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectSimple(rs, table).toJson()));
                     break;
                 case REFERENCE:
-                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectReference(rs, table).toJson()));
+                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectReference(rs, table, refTable).toJson()));
                     break;
                 case EMBEDDED:
-                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectEmbedded(rs, table).toJson()));
+                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectEmbedded(rs, table, refTable).toJson()));
                     break;
                 case MANY:
-                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectMany(rs, table).toJson()));
+                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectMany(rs, table, refTable).toJson()));
                     break;
             }
         }
@@ -125,32 +125,88 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         return builder.toString();
     }
 
-    private BasicDBObject getObjectMany(ResultSet rs, SQLTable table)
+    private Object getBSONType(ResultSet rs, SQLTableColumn column) throws SQLException
     {
+        switch (column.type)
+        {
+            case "NUMBER":
+                return rs.getDouble(column.name);
+            case "DATE":
+                return rs.getDate(column.name);
+            case "CHAR":
+            case "VARCHAR":
+                return rs.getString(column.name);
+        }
+        return rs.getObject(column.name);
+    }
+
+    private BasicDBObject getObjectMany(ResultSet rs, SQLTable table, SQLTableReference refTable) throws SQLException {
         BasicDBObject dbObject = new BasicDBObject();
         BasicDBObject id = new BasicDBObject();
 
+        for (SQLTableColumn pk : table.primaryKeys)
+            id.put(pk.name, rs.getObject(pk.name));
+        dbObject.put("_id", id);
+        dbObject.put("_id", id);
 
 
         return dbObject;
     }
 
-    private BasicDBObject getObjectEmbedded(ResultSet rs, SQLTable table)
-    {
+    private BasicDBObject getObjectEmbedded(ResultSet rs, SQLTable table, SQLTableReference refTable) throws SQLException {
         BasicDBObject dbObject = new BasicDBObject();
         BasicDBObject id = new BasicDBObject();
 
-
+        for (SQLTableColumn pk : table.primaryKeys)
+            id.put(pk.name, getBSONType(rs, pk));
+        dbObject.put("_id", id);
 
         return dbObject;
     }
 
-    private BasicDBObject getObjectReference(ResultSet rs, SQLTable table)
-    {
+    private BasicDBObject getObjectReference(ResultSet rs, SQLTable table, SQLTableReference refTable) throws SQLException {
         BasicDBObject dbObject = new BasicDBObject();
         BasicDBObject id = new BasicDBObject();
+        BasicDBObject ref = new BasicDBObject();
 
+        boolean isPK = false;
 
+        for (SQLTableColumn pk : table.primaryKeys)
+        {
+            if(pk.isForeign)
+            {
+                ref.put(pk.name, getBSONType(rs, pk));
+                isPK = true;
+            }
+            else
+                id.put(pk.name, getBSONType(rs, pk));
+        }
+        if(isPK && ref.size() > 0)
+            id.put(refTable.refName, ref);
+        dbObject.put("_id", id);
+
+        for (SQLTableColumn fk : table.foreignKeys)
+        {
+            Object value = getBSONType(rs, fk);
+            if(fk.references.equals(refTable.refName))
+            {
+                if(isPK)
+                    continue;
+                if(value != null)
+                    ref.put(fk.name, value);
+            }
+            else if(value != null)
+                dbObject.put(fk.name, value);
+        }
+        if(!isPK && ref.size() > 0)
+            dbObject.put(refTable.refName, ref);
+
+        for (SQLTableColumn col : table.columns)
+        {
+            Object value = getBSONType(rs, col);
+            if(value != null)
+                dbObject.put(col.name, value);
+        }
 
         return dbObject;
     }
@@ -159,20 +215,21 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
     {
         BasicDBObject dbObject = new BasicDBObject();
         BasicDBObject id = new BasicDBObject();
+
         for (SQLTableColumn pk : table.primaryKeys)
-            id.put(pk.name, rs.getObject(pk.name));
+            id.put(pk.name, getBSONType(rs, pk));
         dbObject.put("_id", id);
 
-        for (SQLTableColumn col : table.columns)
+        for (SQLTableColumn fk : table.foreignKeys)
         {
-            Object value = rs.getObject(col.name);
+            Object value = getBSONType(rs, fk);
             if(value != null)
-                dbObject.put(col.name, value);
+                dbObject.put(fk.name, value);
         }
 
         for (SQLTableColumn col : table.columns)
         {
-            Object value = rs.getObject(col.name);
+            Object value = getBSONType(rs, col);
             if(value != null)
                 dbObject.put(col.name, value);
         }

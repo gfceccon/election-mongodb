@@ -90,7 +90,7 @@ public class Controller implements Initializable
         run.setOnAction(actionEvent ->
         {
             if (tables.getValue() != null)
-                script.setText(mongo.executeQuery(tables.getValue(), mongo.query(conditions)));
+                script.setText(mongo.executeQuery(tables.getValue(), conditions));
         });
         logic.getItems().setAll(Condition.LogicOperator.NOT);
         conditions = new ArrayList<>();
@@ -103,7 +103,7 @@ public class Controller implements Initializable
         String text = null;
         try
         {
-            text = mongo.getScript(oracle, tables.getValue(), type);
+            text = mongo.getScript(oracle, tables.getValue(), refTables.getValue(), type);
         } catch (SQLException e)
         {
             script.setText(e.getMessage());

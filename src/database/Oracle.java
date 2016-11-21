@@ -95,15 +95,14 @@ public class Oracle
             if (type.equals("R"))
             {
                 column.isForeign = true;
-                column.refName = rs.getString("CONSTRAINT");
-                column.refTable = rs.getString("RTNAME");
-                column.refColumn = rs.getString("RCNAME");
+                String refName = rs.getString("CONSTRAINT");
+                String refTable = rs.getString("RTNAME");
+                String refColumn = rs.getString("RCNAME");
+                SQLTableReference ref = new SQLTableReference(refName, SQLTable.allTables.get(refTable), refColumn);
+                column.references.add(ref);
 
                 table.foreignKeys.add(column);
-                String refTable = rs.getString("RTNAME");
                 SQLTable.allTables.get(refTable).referencedBy.add(table);
-                if(!table.foreignKeys.contains(column.refName))
-                    table.foreignKeysTables.put(column.refName, new SQLTableReference(column.refName, SQLTable.allTables.get(refTable)));
             }
 
             if(type.equals("U"))

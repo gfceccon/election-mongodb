@@ -10,9 +10,12 @@ public class SQLTableColumn
     public boolean isPrimary;
     public boolean isForeign;
 
-    public String refName;
-    public String refTable;
-    public String refColumn;
+    public ArrayList<SQLTableReference> references;
+
+    public SQLTableColumn()
+    {
+        this.references = new ArrayList<>();
+    }
 
     @Override
     public String toString()
