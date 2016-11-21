@@ -24,7 +24,9 @@ public class Controller implements Initializable
     private ArrayList<Condition> conditions;
 
     @FXML
-    public ChoiceBox<SQLTable> table;
+    public ChoiceBox<SQLTable> tables;
+    @FXML
+    public ChoiceBox<SQLTableReference> refTables;
     @FXML
     public Button simple;
     @FXML
@@ -62,7 +64,7 @@ public class Controller implements Initializable
         this.oracle = oracle;
         try
         {
-            table.getItems().addAll(oracle.getTables());
+            tables.getItems().addAll(oracle.getTables());
         } catch (SQLException e)
         {
             script.setText(e.getMessage());
@@ -72,7 +74,7 @@ public class Controller implements Initializable
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle)
     {
-        table.valueProperty().addListener((observable, oldValue, newValue) -> setTable(newValue));
+        tables.valueProperty().addListener((observable, oldValue, newValue) -> setTable(newValue));
         operation.getItems().addAll(Mongo.getOperations());
         simple.setOnAction(actionEvent -> generateScript(Mongo.ScriptType.SIMPLE));
         reference.setOnAction(actionEvent -> generateScript(Mongo.ScriptType.REFERENCE));
@@ -87,8 +89,8 @@ public class Controller implements Initializable
         });
         run.setOnAction(actionEvent ->
         {
-            if (table.getValue() != null)
-                script.setText(mongo.executeQuery(table.getValue(), mongo.query(conditions)));
+            if (tables.getValue() != null)
+                script.setText(mongo.executeQuery(tables.getValue(), mongo.query(conditions)));
         });
         logic.getItems().setAll(Condition.LogicOperator.NOT);
         conditions = new ArrayList<>();
@@ -96,12 +98,12 @@ public class Controller implements Initializable
 
     private void generateScript(Mongo.ScriptType type)
     {
-        if (table.getValue() == null || type == null)
+        if (tables.getValue() == null || type == null)
             return;
         String text = null;
         try
         {
-            text = mongo.getScript(oracle, table.getValue(), type);
+            text = mongo.getScript(oracle, tables.getValue(), type);
         } catch (SQLException e)
         {
             script.setText(e.getMessage());
@@ -113,6 +115,9 @@ public class Controller implements Initializable
     {
         column.getItems().clear();
         column.getItems().addAll(table.allColumns.values());
+
+        refTables.getItems().setAll(table.foreignKeysTables.values());
+
         conditions.clear();
         logic.getItems().setAll(Condition.LogicOperator.NOT);
     }

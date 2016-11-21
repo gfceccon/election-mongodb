@@ -10,6 +10,7 @@ public class SQLTableColumn
     public boolean isPrimary;
     public boolean isForeign;
 
+    public String refName;
     public String refTable;
     public String refColumn;
 

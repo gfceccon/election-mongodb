@@ -196,6 +196,8 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
                 putCondition(not, condition);
                 query.put(Condition.LogicOperator.NOT.getLogicMongo(), not);
             }
+            else
+                putCondition(query, condition);
         }
         else
         {
@@ -279,7 +281,10 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
                 and.put(Condition.LogicOperator.AND.getLogicMongo(), andList);
                 orList.add(and);
             }
-            query.put(Condition.LogicOperator.OR.getLogicMongo(), orList);
+            if(orList.size() == 1)
+                query = and;
+            else
+                query.put(Condition.LogicOperator.OR.getLogicMongo(), orList);
         }
 
         return query;
@@ -319,11 +324,11 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         return obj;
     }
 
-    public String executeQuery(SQLTable table, BasicDBObject query)
+    public String executeQuery(SQLTable table, Collection<Condition> conditions)
     {
         StringBuilder builder = new StringBuilder();
         MongoCollection collection = database.getCollection(table.name);
-        for (Object o : collection.find(query))
+        for (Object o : collection.find(this.query(conditions)))
         {
             builder.append(o);
         }

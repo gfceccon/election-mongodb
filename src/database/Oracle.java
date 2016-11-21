@@ -75,7 +75,7 @@ public class Oracle
 
         stmt.close();
 
-        query = String.format("SELECT TNAME, CNAME, CTYPE, CONDITION, COLS.TABLE_NAME AS RTNAME, COLS.COLUMN_NAME AS RCNAME FROM (SELECT COLS.TABLE_NAME AS TNAME, COLS.COLUMN_NAME AS CNAME, CONS.CONSTRAINT_TYPE AS CTYPE, CONS.SEARCH_CONDITION AS CONDITION, CONS.R_CONSTRAINT_NAME, COLS.POSITION FROM USER_CONSTRAINTS CONS JOIN USER_CONS_COLUMNS COLS ON CONS.CONSTRAINT_NAME = COLS.CONSTRAINT_NAME WHERE CONS.CONSTRAINT_TYPE IN ('P', 'R', 'U') AND COLS.TABLE_NAME = '%s') TCONS LEFT JOIN USER_CONS_COLUMNS COLS ON COLS.CONSTRAINT_NAME = TCONS.R_CONSTRAINT_NAME AND TCONS.POSITION = COLS.POSITION", table.name);
+        query = String.format("SELECT TNAME, CNAME, CTYPE, CONSTRAINT, CONDITION, COLS.TABLE_NAME AS RTNAME, COLS.COLUMN_NAME AS RCNAME FROM (SELECT COLS.TABLE_NAME AS TNAME, COLS.COLUMN_NAME AS CNAME, CONS.CONSTRAINT_TYPE AS CTYPE, CONS.CONSTRAINT_NAME AS CONSTRAINT, CONS.SEARCH_CONDITION AS CONDITION, CONS.R_CONSTRAINT_NAME, COLS.POSITION FROM USER_CONSTRAINTS CONS JOIN USER_CONS_COLUMNS COLS ON CONS.CONSTRAINT_NAME = COLS.CONSTRAINT_NAME WHERE CONS.CONSTRAINT_TYPE IN ('P', 'R', 'U') AND COLS.TABLE_NAME = '%s') TCONS LEFT JOIN USER_CONS_COLUMNS COLS ON COLS.CONSTRAINT_NAME = TCONS.R_CONSTRAINT_NAME AND TCONS.POSITION = COLS.POSITION", table.name);
         stmt = connection.createStatement();
         rs = stmt.executeQuery(query);
 
@@ -95,13 +95,15 @@ public class Oracle
             if (type.equals("R"))
             {
                 column.isForeign = true;
+                column.refName = rs.getString("CONSTRAINT");
                 column.refTable = rs.getString("RTNAME");
                 column.refColumn = rs.getString("RCNAME");
 
                 table.foreignKeys.add(column);
-                String referenceTable = rs.getString("RTNAME");
-                SQLTable.allTables.get(referenceTable).referencedBy.put(table.name, table);
-                table.foreignKeysTables.put(referenceTable, SQLTable.allTables.get(referenceTable));
+                String refTable = rs.getString("RTNAME");
+                SQLTable.allTables.get(refTable).referencedBy.add(table);
+                if(!table.foreignKeys.contains(column.refName))
+                    table.foreignKeysTables.put(column.refName, new SQLTableReference(column.refName, SQLTable.allTables.get(refTable)));
             }
 
             if(type.equals("U"))
