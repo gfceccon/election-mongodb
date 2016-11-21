@@ -3,10 +3,14 @@ package database;
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
+import org.bson.Document;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class Mongo
@@ -293,11 +297,22 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
     private void putCondition(BasicDBObject obj, Condition condition)
     {
         Object value = condition.value;
+        //DateFormat df = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+
+
         switch (condition.column.type)
         {
             case "DATE":
+                try {
+                    Date df = new SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH).parse(condition.value);
+                    value = df;
+
+                } catch(Exception e) {
+                    e.printStackTrace();
+                }
                 break;
-            case "TIMESTAMP":
+            case "NUMBER":
+                value = Double.parseDouble(condition.value);
                 break;
         }
         if(condition.operation.mongo == null)
@@ -326,12 +341,15 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
 
     public String executeQuery(SQLTable table, Collection<Condition> conditions)
     {
-        StringBuilder builder = new StringBuilder();
+        String builder = "";
         MongoCollection collection = database.getCollection(table.name);
-        for (Object o : collection.find(this.query(conditions)))
-        {
-            builder.append(o);
+
+        MongoCursor<Document> cursor = collection.find(this.query(conditions)).iterator();
+
+        while(cursor.hasNext()){
+            builder += cursor.next().toJson() + "\n";
         }
-        return builder.toString();
+
+        return builder;
     }
 }

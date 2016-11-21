@@ -100,7 +100,7 @@ public class TestMainClass {
             System.out.println("NO INDEX");
             insertIntoCollection(num);
             findValues(num);
-
+            
             //TABELA COM INDICE
             table = db.getCollection("teste_100_index");
             table.drop();
