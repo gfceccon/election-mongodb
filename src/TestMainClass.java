@@ -14,8 +14,8 @@ public class TestMainClass {
 
     public static MongoClient mongo;
     public static MongoDatabase db;
-    public static MongoCollection table;
-    public static ArrayList<Document> tuples = new ArrayList<Document>();
+    public static MongoCollection<Document> table;
+    public static ArrayList<Document> tuples = new ArrayList<>();
 
     static final String AB = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ";
     static SecureRandom rnd = new SecureRandom();

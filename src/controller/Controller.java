@@ -16,7 +16,11 @@ import java.io.*;
 import java.net.URL;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.*;
+import java.util.stream.Collectors;
 
 public class Controller implements Initializable
 {
@@ -25,6 +29,10 @@ public class Controller implements Initializable
     private Mongo mongo;
 
     private ArrayList<Condition> conditions;
+
+    private SQLTableReference[] manyToManyReferences;
+
+    private int manyToManySize;
 
     @FXML
     public ChoiceBox<SQLTable> tables;
@@ -86,15 +94,10 @@ public class Controller implements Initializable
         simple.setOnAction(actionEvent -> generateScript(Mongo.ScriptType.SIMPLE));
         reference.setOnAction(actionEvent -> generateScript(Mongo.ScriptType.REFERENCE));
         embedded.setOnAction(actionEvent -> generateScript(Mongo.ScriptType.EMBEDDED));
-        manyToMany.setOnAction(actionEvent -> generateScript(Mongo.ScriptType.MANY));
+        manyToMany.setOnAction(actionEvent -> addManyToMany());
         addCondition.setOnAction(actionEvent -> addCondition());
         validation.setOnAction(actionEvent -> showValidation());
-        clear.setOnAction(actionEvent ->
-        {
-            conditions.clear();
-            conditionText.setText("");
-            logic.getItems().setAll(Condition.LogicOperator.NOT);
-        });
+        clear.setOnAction(actionEvent -> clear());
         indexes.setOnAction(actionEvent -> generateIndexes());
         run.setOnAction(actionEvent ->
         {
@@ -103,11 +106,51 @@ public class Controller implements Initializable
         });
         logic.getItems().setAll(Condition.LogicOperator.NOT);
         conditions = new ArrayList<>();
+        manyToManyReferences = new SQLTableReference[2];
+    }
+    private void clear()
+    {
+        script.clear();
+        manyToManySize = 0;
+
+        conditions.clear();
+        conditionText.clear();
+
+        logic.getItems().setAll(Condition.LogicOperator.NOT);
+    }
+
+    private void addManyToMany()
+    {
+        if (tables.getValue() == null || refTables.getValue() == null)
+            return;
+        manyToManyReferences[manyToManySize++] = refTables.getValue();
+        if(manyToManySize == 2)
+        {
+            String text = null;
+            try
+            {
+                text = mongo.generateScript(oracle, tables.getValue(), manyToManyReferences);
+            } catch (Exception e)
+            {
+                script.setText(e.getMessage());
+            }
+            script.setText(text);
+            setTable(tables.getValue());
+        }
+        else
+        {
+            refTables.getItems().remove(refTables.getValue());
+            refTables.setValue(null);
+            script.setText(String.format("%s -> %s (%s)", tables.getValue().name, manyToManyReferences[0].table.name, manyToManyReferences[0].refName));
+        }
     }
 
     private void generateScript(Mongo.ScriptType type)
     {
+        clear();
         if (tables.getValue() == null || type == null)
+            return;
+        if(type != Mongo.ScriptType.SIMPLE && refTables.getValue() == null)
             return;
         String text = null;
         try
@@ -125,10 +168,9 @@ public class Controller implements Initializable
         column.getItems().clear();
         column.getItems().addAll(table.allColumns.values());
 
-        refTables.getItems().setAll(table.foreignKeysTables.values());
+        refTables.getItems().setAll(table.foreignKeysTables.stream().filter(distinctByKey(tableReference -> tableReference.refName)).collect(Collectors.toList()));
 
-        conditions.clear();
-        logic.getItems().setAll(Condition.LogicOperator.NOT);
+        clear();
     }
 
     private void addCondition()
@@ -144,8 +186,6 @@ public class Controller implements Initializable
         condition.column = column.getValue();
         condition.operation = operation.getValue();
         condition.value = value.getText();
-        if (conditions == null)
-            conditions = new ArrayList<>();
         conditions.add(condition);
 
         if(conditions.size() == 1)
@@ -205,7 +245,7 @@ public class Controller implements Initializable
         String text = "";
         int count;
 
-        script.clear();
+        clear();
 
         for(SQLTable table : SQLTable.allTables.values()){
             count = 0;
@@ -233,7 +273,7 @@ public class Controller implements Initializable
             FileInputStream fl = new FileInputStream("./res/ex3.txt");
             BufferedReader br = new BufferedReader(new InputStreamReader(fl));
 
-            script.clear();
+            clear();
             while((text = br.readLine())!= null){
                 script.appendText(text + "\n");
             }
@@ -243,5 +283,10 @@ public class Controller implements Initializable
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
+        Map<Object,Boolean> seen = new ConcurrentHashMap<>();
+        return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
     }
 }

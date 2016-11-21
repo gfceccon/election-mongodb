@@ -7,11 +7,13 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
+import javax.print.Doc;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Mongo
 {
@@ -105,6 +107,11 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         oracle.begin(table);
 
         ResultSet rs;
+
+
+        List<SQLTableColumn> fks = table.allColumns.values().stream().filter(
+                col -> col.references.stream().anyMatch(
+                        tableReference -> tableReference.refName.equals(refTable.refName))).collect(Collectors.toList());
         while((rs = oracle.next()) != null)
         {
             switch (type)
@@ -113,16 +120,43 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
                     builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectSimple(rs, table).toJson()));
                     break;
                 case REFERENCE:
-                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectReference(rs, table, refTable).toJson()));
+                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectReference(rs, table, refTable.refName, fks).toJson()));
                     break;
                 case EMBEDDED:
-                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectEmbedded(rs, table, refTable).toJson()));
-                    break;
-                case MANY:
-                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectMany(rs, table, refTable).toJson()));
+                    builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectEmbedded(rs, table, refTable.refName, fks).toJson()));
                     break;
             }
         }
+
+        oracle.end();
+
+        return builder.toString();
+    }
+
+    public String generateScript(Oracle oracle, SQLTable table, SQLTableReference[] refTables) throws Exception
+    {
+        if(refTables.length < 2)
+            throw new Exception("Reference tables size less than 2 on N:N");
+
+
+        //MongoCollection collection = database.getCollection(table.name);
+        StringBuilder builder = new StringBuilder();
+
+        oracle.begin(table);
+
+        ResultSet rs;
+
+
+        List<SQLTableColumn> right = table.allColumns.values().stream().filter(
+                col -> col.references.stream().anyMatch(
+                        tableReference -> tableReference.refName.equals(refTables[0].refName))).collect(Collectors.toList());
+
+        List<SQLTableColumn> left = table.allColumns.values().stream().filter(
+                col -> col.references.stream().anyMatch(
+                        tableReference -> tableReference.refName.equals(refTables[1].refName))).collect(Collectors.toList());
+
+        while((rs = oracle.next()) != null)
+            builder.append(String.format("db.%s.insert(%s)\n", table.name, getObjectMany(rs, table, right, left)));
 
         oracle.end();
 
@@ -144,7 +178,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         return rs.getObject(column.name);
     }
 
-    private BasicDBObject getObjectMany(ResultSet rs, SQLTable table, SQLTableReference refTable) throws SQLException {
+    private BasicDBObject getObjectMany(ResultSet rs, SQLTable table, List<SQLTableColumn> rightFks, List<SQLTableColumn> leftFks) throws SQLException {
         BasicDBObject dbObject = new BasicDBObject();
         BasicDBObject id = new BasicDBObject();
 
@@ -157,7 +191,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         return dbObject;
     }
 
-    private BasicDBObject getObjectEmbedded(ResultSet rs, SQLTable table, SQLTableReference refTable) throws SQLException {
+    private BasicDBObject getObjectEmbedded(ResultSet rs, SQLTable table, String refName, List<SQLTableColumn> fks) throws SQLException {
         BasicDBObject dbObject = new BasicDBObject();
         BasicDBObject id = new BasicDBObject();
 
@@ -168,42 +202,52 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         return dbObject;
     }
 
-    private BasicDBObject getObjectReference(ResultSet rs, SQLTable table, SQLTableReference refTable) throws SQLException {
+    private BasicDBObject getObjectReference(ResultSet rs, SQLTable table, String refName, List<SQLTableColumn> fks) throws SQLException {
         BasicDBObject dbObject = new BasicDBObject();
         BasicDBObject id = new BasicDBObject();
         BasicDBObject ref = new BasicDBObject();
 
         boolean isPK = false;
+        int fkCount = 0;
 
         for (SQLTableColumn pk : table.primaryKeys)
         {
-            if(pk.isForeign)
+            if(pk.isForeign && fks.contains(pk))
             {
                 ref.put(pk.name, getBSONType(rs, pk));
+                fkCount++;
                 isPK = true;
             }
             else
                 id.put(pk.name, getBSONType(rs, pk));
         }
-        if(isPK && ref.size() > 0)
-            id.put(refTable.refName, ref);
+        if(isPK && fks.size() == fkCount)
+            id.put(refName, ref);
+        else if(isPK)
+            id.putAll(ref.toMap());
         dbObject.put("_id", id);
 
+        fkCount = 0;
         for (SQLTableColumn fk : table.foreignKeys)
         {
             Object value = getBSONType(rs, fk);
-            if(fk.references.equals(refTable.refName))
+            if(fk.isPrimary)
+                continue;
+            if (value != null)
             {
-                if(isPK)
-                    continue;
-                if(value != null)
+                if(fks.contains(fk))
+                {
                     ref.put(fk.name, value);
+                    fkCount++;
+                }
+                else
+                    dbObject.put(fk.name, value);
             }
-            else if(value != null)
-                dbObject.put(fk.name, value);
         }
-        if(!isPK && ref.size() > 0)
-            dbObject.put(refTable.refName, ref);
+        if(fks.size() == fkCount)
+            dbObject.put(refName, ref);
+        else if(ref.size() > 0)
+            dbObject.putAll(ref.toMap());
 
         for (SQLTableColumn col : table.columns)
         {
@@ -264,10 +308,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         {
             Iterator<Condition> iterator = conditions.iterator();
             Condition current = iterator.next();
-            //Recursive case
-            //query.put(next.logicOperator.getLogicMongo(), conditionRecursive(iterator,  current, next));
 
-            //Simple case
             // NULL, COND, AND, COND, AND, COND, OR, COND, OR, COND, NOT, COND
             // OR (AND(COND, COND, COND), COND, COND, NOT(COND))
             BasicDBObject and = null;
@@ -361,8 +402,7 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
         {
             case "DATE":
                 try {
-                    Date df = new SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH).parse(condition.value);
-                    value = df;
+                    value = new SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH).parse(condition.value);
 
                 } catch(Exception e) {
                     e.printStackTrace();
@@ -378,34 +418,13 @@ Notem que a entidade Candidatura irá precisar de uma solução específica, nã
             obj.put(condition.column.name.toLowerCase(), new BasicDBObject(condition.operation.mongo, value));
     }
 
-
-    // NULL, COND, AND, COND, OR, COND
-    // AND (COND, AND (COND, AND (COND, COND)))
-    private Object conditionRecursive(Iterator<Condition> iterator, Condition current, Condition next)
-    {
-        BasicDBObject result = new BasicDBObject();
-        if(!iterator.hasNext())
-        {
-            putCondition(result, current);
-            putCondition(result, next);
-            return result;
-        }
-        Object obj = conditionRecursive(iterator, next, iterator.next());
-        putCondition(result, current);
-        result.put(next.logicOperator.getLogicMongo(), obj);
-        return obj;
-    }
-
     public String executeQuery(SQLTable table, Collection<Condition> conditions)
     {
         String builder = "";
-        MongoCollection collection = database.getCollection(table.name);
+        MongoCollection<Document> collection = database.getCollection(table.name);
 
-        MongoCursor<Document> cursor = collection.find(this.query(conditions)).iterator();
-
-        while(cursor.hasNext()){
-            builder += cursor.next().toJson() + "\n";
-        }
+        for (Document document : collection.find(this.query(conditions)))
+            builder += document.toJson() + "\n";
 
         return builder;
     }
