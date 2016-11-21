@@ -12,6 +12,7 @@ import javafx.stage.WindowEvent;
 import org.bson.json.JsonMode;
 import org.bson.json.JsonWriterSettings;
 
+import java.io.*;
 import java.net.URL;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -39,6 +40,8 @@ public class Controller implements Initializable
     public Button manyToMany;
     @FXML
     public Button indexes;
+    @FXML
+    public Button validation;
     @FXML
     public TextArea script;
     @FXML
@@ -85,6 +88,7 @@ public class Controller implements Initializable
         embedded.setOnAction(actionEvent -> generateScript(Mongo.ScriptType.EMBEDDED));
         manyToMany.setOnAction(actionEvent -> generateScript(Mongo.ScriptType.MANY));
         addCondition.setOnAction(actionEvent -> addCondition());
+        validation.setOnAction(actionEvent -> showValidation());
         clear.setOnAction(actionEvent ->
         {
             conditions.clear();
@@ -199,14 +203,45 @@ public class Controller implements Initializable
 
     public void generateIndexes(){
         String text = "";
-        for(SQLTable table : SQLTable.allTables.values()){
-            for(SQLTableColumn col : table.allColumns.values()){
-                if(col.isPrimary || col.isForeign){
-                    text += "db." + table.toString() + ".createIndex({" + col + ": 1})\n";
-                }
-            }
-        }
+        int count;
+
         script.clear();
-        script.setText(text);
+
+        for(SQLTable table : SQLTable.allTables.values()){
+            count = 0;
+            text += "db." + table.toString() + ".createIndex({";
+            for(SQLTableColumn col : table.uniques){
+                if(count>0)
+                    text += "," + col + ": 1";
+                else
+                    text += col + ": 1";
+                count++;
+            }
+            if(count > 0)
+                text += "}, {unique: = true, sparse = true})\n";
+            else
+                text = "";
+
+            script.appendText(text);
+            text = "";
+        }
+    }
+
+    public void showValidation(){
+        try {
+            String text = "";
+            FileInputStream fl = new FileInputStream("./res/ex3.txt");
+            BufferedReader br = new BufferedReader(new InputStreamReader(fl));
+
+            script.clear();
+            while((text = br.readLine())!= null){
+                script.appendText(text + "\n");
+            }
+
+            fl.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
