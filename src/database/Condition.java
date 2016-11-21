@@ -10,7 +10,8 @@ public class Condition
         OR,
         NOT,
         AND_NOT,
-        OR_NOT;
+        OR_NOT,
+        NULLEMPTY;
 
         private static ArrayList<LogicOperator> all;
 
@@ -42,6 +43,8 @@ public class Condition
                     return "AND NOT";
                 case OR_NOT:
                     return "OR NOT";
+                case NULLEMPTY:
+                    return " ";
             }
             return "";
         }

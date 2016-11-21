@@ -104,9 +104,9 @@ public class Controller implements Initializable
             if (tables.getValue() != null)
                 script.setText(mongo.executeQuery(tables.getValue(), conditions));
         });
-        logic.getItems().setAll(Condition.LogicOperator.NOT);
         conditions = new ArrayList<>();
         manyToManyReferences = new SQLTableReference[2];
+        clear();
     }
     private void clear()
     {
@@ -116,7 +116,7 @@ public class Controller implements Initializable
         conditions.clear();
         conditionText.clear();
 
-        logic.getItems().setAll(Condition.LogicOperator.NOT);
+        logic.getItems().setAll(Condition.LogicOperator.NULLEMPTY, Condition.LogicOperator.NOT);
     }
 
     private void addManyToMany()
@@ -127,6 +127,13 @@ public class Controller implements Initializable
         if(manyToManySize == 2)
         {
             String text = null;
+            simple.setDisable(false);
+            reference.setDisable(false);
+            embedded.setDisable(false);
+            indexes.setDisable(false);
+            validation.setDisable(false);
+            addCondition.setDisable(false);
+            run.setDisable(false);
             try
             {
                 text = mongo.generateScript(oracle, tables.getValue(), manyToManyReferences);
@@ -139,6 +146,13 @@ public class Controller implements Initializable
         }
         else
         {
+            simple.setDisable(true);
+            reference.setDisable(true);
+            embedded.setDisable(true);
+            indexes.setDisable(true);
+            validation.setDisable(true);
+            addCondition.setDisable(true);
+            run.setDisable(true);
             refTables.getItems().remove(refTables.getValue());
             refTables.setValue(null);
             script.setText(String.format("%s -> %s (%s)", tables.getValue().name, manyToManyReferences[0].table.name, manyToManyReferences[0].refName));
@@ -182,7 +196,10 @@ public class Controller implements Initializable
         if(value.getText().isEmpty())
             return;
         Condition condition = new Condition();
-        condition.logicOperator = logic.getValue();
+        if(condition.logicOperator == Condition.LogicOperator.NULLEMPTY)
+            condition.logicOperator = null;
+        else
+            condition.logicOperator = logic.getValue();
         condition.column = column.getValue();
         condition.operation = operation.getValue();
         condition.value = value.getText();
@@ -198,7 +215,7 @@ public class Controller implements Initializable
         {
             if(first)
             {
-                if(c.logicOperator == null)
+                if(c.logicOperator == Condition.LogicOperator.NULLEMPTY || c.logicOperator == null)
                     logic = "" + c.column + c.operation + c.value;
                 else
                     logic = "NOT " + c.column + c.operation + c.value;
