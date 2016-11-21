@@ -1,8 +1,6 @@
 package database;
 
 import java.sql.*;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.ArrayList;
 
 
@@ -101,8 +99,9 @@ public class Oracle
                 SQLTableReference ref = new SQLTableReference(refName, SQLTable.allTables.get(refTable), refColumn);
                 column.references.add(ref);
 
-                table.foreignKeys.add(column);
-                SQLTable.allTables.get(refTable).referencedBy.add(table);
+                if(!table.foreignKeys.contains(column))
+                    table.foreignKeys.add(column);
+                table.foreignKeysTables.add(ref);
             }
 
             if(type.equals("U"))

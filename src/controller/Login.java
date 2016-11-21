@@ -5,6 +5,7 @@ import database.Oracle;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
@@ -40,10 +41,6 @@ public class Login implements Initializable
         {
             try
             {
-                user.setDisable(true);
-                password.setDisable(true);
-                loginButton.setDisable(true);
-
                 Oracle oracle = Oracle.connect(user.getText(), password.getText());
                 Mongo mongo = Mongo.connect(database.getText());
 
@@ -60,7 +57,10 @@ public class Login implements Initializable
                 controller.setMongo(mongo);
             } catch (ClassNotFoundException | SQLException e)
             {
-                e.printStackTrace();
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Login Error");
+                alert.setHeaderText("Error on authentication or driver not found!");
+                alert.showAndWait();
             }
         });
     }

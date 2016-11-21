@@ -35,8 +35,7 @@ public class SQLTable
     public ArrayList<SQLTableColumn> primaryKeys;
     public ArrayList<SQLTableColumn> foreignKeys;
     public ArrayList<SQLTableColumn> uniques;
-    public HashMap<String, SQLTable> referencedBy;
-    public HashMap<String, SQLTableReference> foreignKeysTables;
+    public ArrayList<SQLTableReference> foreignKeysTables;
 
     public SQLTable(String name, TableType type)
     {
@@ -47,8 +46,7 @@ public class SQLTable
         this.primaryKeys = new ArrayList<>();
         this.foreignKeys = new ArrayList<>();
         this.uniques = new ArrayList<>();
-        this.referencedBy = new HashMap<>();
-        this.foreignKeysTables = new HashMap<>();
+        this.foreignKeysTables = new ArrayList<>();
     }
 
     @Override
